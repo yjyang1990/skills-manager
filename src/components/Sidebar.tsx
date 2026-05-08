@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -13,6 +13,8 @@ import {
   FolderOpen,
   GripVertical,
   Link2,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -44,7 +46,7 @@ export function Sidebar() {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
-  const { scenarios, viewedScenario, setViewedScenarioId, refreshScenarios, refreshManagedSkills, projects, refreshProjects } = useApp();
+  const { scenarios, viewedScenario, setViewedScenarioId, refreshScenarios, refreshManagedSkills, projects, refreshProjects, tools, managedSkills } = useApp();
   const [showCreate, setShowCreate] = useState(false);
   const [showAddProject, setShowAddProject] = useState(false);
   const [renameTarget, setRenameTarget] = useState<{ id: string; name: string; icon?: string | null } | null>(null);
@@ -54,6 +56,18 @@ export function Sidebar() {
   const [orderedProjects, setOrderedProjects] = useState(projects);
   const scenarioReorderQueueRef = useRef<Promise<void>>(Promise.resolve());
   const projectReorderQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const [globalWorkspaceOpen, setGlobalWorkspaceOpen] = useState(true);
+
+  const installedTools = useMemo(() => tools.filter((t) => t.installed && t.enabled), [tools]);
+  const globalSkillsByAgent = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const tool of installedTools) {
+      map[tool.key] = managedSkills.filter((skill) =>
+        skill.targets.some((target) => target.tool === tool.key)
+      ).length;
+    }
+    return map;
+  }, [installedTools, managedSkills]);
 
   useEffect(() => { setOrderedScenarios(scenarios); }, [scenarios]);
   useEffect(() => { setOrderedProjects(projects); }, [projects]);
@@ -99,7 +113,6 @@ export function Sidebar() {
   const NAV_ITEMS = [
     { name: t("sidebar.dashboard"), path: "/", icon: LayoutDashboard },
     { name: t("sidebar.mySkills"), path: "/my-skills", icon: Layers },
-    { name: t("sidebar.globalWorkspace"), path: "/global-workspace", icon: Globe },
     { name: t("sidebar.installSkills"), path: "/install", icon: Download },
   ];
 
@@ -434,6 +447,74 @@ export function Sidebar() {
             <Plus className="w-3.5 h-3.5" />
             {t("sidebar.addProject")}
           </button>
+
+          {/* Divider */}
+          <div className="mx-0.5 mt-3.5 mb-2.5 border-t border-border-subtle" />
+
+          {/* Global Workspace */}
+          <div className="mb-1.5 px-2.5 flex items-center gap-1">
+            <button
+              onClick={() => setGlobalWorkspaceOpen((v) => !v)}
+              className="flex min-w-0 flex-1 items-center gap-1 text-left outline-none"
+            >
+              {globalWorkspaceOpen
+                ? <ChevronDown className="h-3 w-3 shrink-0 text-faint" />
+                : <ChevronRight className="h-3 w-3 shrink-0 text-faint" />}
+              <span className="truncate text-[12px] font-semibold tracking-[0.01em] text-muted whitespace-nowrap">
+                {t("sidebar.globalWorkspace")}
+              </span>
+            </button>
+            <Link
+              to="/global-workspace"
+              className="shrink-0 rounded p-0.5 text-faint transition-colors hover:text-secondary"
+              title={t("sidebar.globalWorkspace")}
+            >
+              <Globe className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+
+          {globalWorkspaceOpen && (
+            <div className="space-y-0.5">
+              {installedTools.length === 0 ? (
+                <p className="px-5 py-1.5 text-[12px] text-faint">{t("globalWorkspace.noAgents")}</p>
+              ) : (
+                installedTools.map((tool) => {
+                  const skillCount = globalSkillsByAgent[tool.key] ?? 0;
+                  const isActive = location.pathname === `/global-workspace/${tool.key}`;
+                  return (
+                    <Link
+                      key={tool.key}
+                      to={`/global-workspace/${tool.key}`}
+                      className={cn(
+                        "flex items-center gap-2 px-2.5 py-[7px] rounded-[5px] text-[13px] transition-colors outline-none",
+                        isActive
+                          ? "bg-surface-active font-medium text-primary"
+                          : "text-tertiary hover:text-secondary hover:bg-surface-hover"
+                      )}
+                    >
+                      <span className={cn(
+                        "flex h-[20px] w-[20px] shrink-0 items-center justify-center rounded border",
+                        isActive
+                          ? "border-accent/30 bg-accent/10 text-accent"
+                          : "border-border bg-surface text-muted"
+                      )}>
+                        <Globe className="h-3 w-3" />
+                      </span>
+                      <span className="flex-1 truncate">{tool.display_name}</span>
+                      {skillCount > 0 && (
+                        <span className={cn(
+                          "min-w-[18px] rounded-full px-1.5 text-center text-[12px] font-medium leading-[18px] tabular-nums",
+                          isActive ? "bg-accent-bg text-accent-light" : "bg-surface-hover text-muted"
+                        )}>
+                          {skillCount}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })
+              )}
+            </div>
+          )}
         </div>
 
         {/* Settings */}

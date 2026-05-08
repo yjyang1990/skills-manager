@@ -1,11 +1,24 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, ChevronRight, Globe, Layers, Loader2, Plus, Search, Trash2, X } from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
+import {
+  CheckCircle2,
+  Globe,
+  Layers,
+  LayoutGrid,
+  List,
+  Loader2,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { cn } from "../utils";
 import { useApp } from "../context/AppContext";
 import { PresetWorkspaceActionDialog } from "../components/PresetWorkspaceActionDialog";
+import { getTagColor } from "../lib/skillTags";
 import * as api from "../lib/tauri";
 import type { ManagedSkill, ToolInfo } from "../lib/tauri";
 import { getErrorMessage } from "../lib/error";
@@ -167,72 +180,69 @@ function AddSkillDialog({
 }
 
 export function GlobalWorkspace() {
+  const { agentKey } = useParams<{ agentKey?: string }>();
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const { tools, managedSkills, scenarios, refreshManagedSkills, refreshTools } = useApp();
 
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [search, setSearch] = useState("");
   const [showPresetDialog, setShowPresetDialog] = useState(false);
-  const [addDialogAgentKey, setAddDialogAgentKey] = useState<string | null>(null);
-  const [removingKey, setRemovingKey] = useState<string | null>(null);
-  const [collapsedAgents, setCollapsedAgents] = useState<Set<string>>(new Set());
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
-  const toggleCollapse = useCallback((agentKey: string) => {
-    setCollapsedAgents((prev) => {
-      const next = new Set(prev);
-      if (next.has(agentKey)) next.delete(agentKey);
-      else next.add(agentKey);
-      return next;
-    });
-  }, []);
+  const installedTools = useMemo(() => tools.filter((t) => t.installed && t.enabled), [tools]);
 
-  const installedTools = useMemo(() => tools.filter((tool) => tool.installed), [tools]);
-
-  const skillsByAgent = useMemo(() => {
-    const map: Record<string, ManagedSkill[]> = {};
-    for (const tool of tools) {
-      map[tool.key] = managedSkills.filter((skill) =>
-        skill.targets.some((target) => target.tool === tool.key)
-      );
+  // Auto-navigate to first installed agent when no agentKey
+  useEffect(() => {
+    if (!agentKey && installedTools.length > 0) {
+      navigate(`/global-workspace/${installedTools[0].key}`, { replace: true });
     }
-    return map;
-  }, [tools, managedSkills]);
+  }, [agentKey, installedTools, navigate]);
 
-  const totalInstalled = useMemo(
-    () => new Set(managedSkills.filter((s) => s.targets.length > 0).map((s) => s.id)).size,
-    [managedSkills]
+  const currentTool = useMemo(
+    () => (agentKey ? tools.find((t) => t.key === agentKey) ?? null : null),
+    [agentKey, tools]
   );
 
-  const globalWorkspaceAgents = useMemo(
+  const allTags = useMemo(() => {
+    const tags = new Set<string>();
+    for (const skill of managedSkills) {
+      for (const tag of skill.tags) {
+        if (tag.trim()) tags.add(tag);
+      }
+    }
+    return Array.from(tags).sort((a, b) => a.localeCompare(b));
+  }, [managedSkills]);
+
+  const agentSkills = useMemo(
     () =>
-      tools.map((tool) => ({
-        key: tool.key,
-        display_name: tool.display_name,
-        enabled: tool.enabled,
-        installed: tool.installed,
-      })),
-    [tools]
+      agentKey
+        ? managedSkills.filter((skill) =>
+            skill.targets.some((target) => target.tool === agentKey)
+          )
+        : [],
+    [agentKey, managedSkills]
   );
 
-  const existsInGlobal = useCallback(
-    (skill: ManagedSkill, agentKey: string) =>
-      skill.targets.some((target) => target.tool === agentKey),
-    []
+  const filtered = useMemo(() => {
+    if (!search) return agentSkills;
+    const q = search.toLowerCase();
+    return agentSkills.filter(
+      (skill) =>
+        skill.name.toLowerCase().includes(q) ||
+        (skill.description || "").toLowerCase().includes(q)
+    );
+  }, [agentSkills, search]);
+
+  const installedIds = useMemo(
+    () => new Set(agentSkills.map((s) => s.id)),
+    [agentSkills]
   );
 
-  const handlePresetAdd = useCallback(async (skill: ManagedSkill, agentKey: string) => {
-    await api.syncSkillToTool(skill.id, agentKey);
-  }, []);
-
-  const handlePresetRemove = useCallback(async (skill: ManagedSkill, agentKey: string) => {
-    await api.unsyncSkillFromTool(skill.id, agentKey);
-  }, []);
-
-  const handlePresetComplete = useCallback(async () => {
-    await Promise.all([refreshManagedSkills(), refreshTools()]);
-  }, [refreshManagedSkills, refreshTools]);
-
-  const handleRemove = async (skill: ManagedSkill, agentKey: string) => {
-    const key = `${skill.id}:${agentKey}`;
-    setRemovingKey(key);
+  const handleRemove = async (skill: ManagedSkill) => {
+    if (!agentKey) return;
+    setRemovingId(skill.id);
     try {
       await api.unsyncSkillFromTool(skill.id, agentKey);
       await Promise.all([refreshManagedSkills(), refreshTools()]);
@@ -240,64 +250,60 @@ export function GlobalWorkspace() {
     } catch (e) {
       toast.error(getErrorMessage(e, t("common.error")));
     } finally {
-      setRemovingKey(null);
+      setRemovingId(null);
     }
   };
 
-  const addDialogAgent = addDialogAgentKey
-    ? (tools.find((tool) => tool.key === addDialogAgentKey) ?? null)
-    : null;
-
-  const addDialogInstalledIds = useMemo((): Set<string> => {
-    if (!addDialogAgentKey) return new Set();
-    return new Set(
-      managedSkills
-        .filter((skill) => skill.targets.some((target) => target.tool === addDialogAgentKey))
-        .map((skill) => skill.id)
-    );
-  }, [addDialogAgentKey, managedSkills]);
-
   const handleAddSkills = useCallback(
     async (skillIds: string[]) => {
-      if (!addDialogAgentKey) return;
+      if (!agentKey) return;
       for (const skillId of skillIds) {
-        await api.syncSkillToTool(skillId, addDialogAgentKey);
+        await api.syncSkillToTool(skillId, agentKey);
       }
       await Promise.all([refreshManagedSkills(), refreshTools()]);
       toast.success(t("globalWorkspace.addedToast", { count: skillIds.length }));
-      setAddDialogAgentKey(null);
+      setAddDialogOpen(false);
     },
-    [addDialogAgentKey, refreshManagedSkills, refreshTools, t]
+    [agentKey, refreshManagedSkills, refreshTools, t]
   );
 
-  return (
-    <div className="app-page">
-      {/* Header */}
-      <div className="app-page-header">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="app-page-title">{t("globalWorkspace.title")}</h1>
-            <p className="app-page-subtitle">
-              {t("globalWorkspace.subtitle")}
-              {totalInstalled > 0 && (
-                <span className="ml-2 rounded-full bg-accent-bg px-2 py-0.5 text-[11px] font-semibold text-accent-light">
-                  {t("globalWorkspace.skillCount", { count: totalInstalled })}
-                </span>
-              )}
-            </p>
-          </div>
-          <button
-            onClick={() => setShowPresetDialog(true)}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border-subtle bg-background px-3 py-2 text-[13px] font-medium text-secondary transition-colors hover:border-border hover:bg-surface-hover"
-          >
-            <Layers className="h-3.5 w-3.5" />
-            {t("presetActions.button")}
-          </button>
-        </div>
-      </div>
+  const globalWorkspaceAgents = useMemo(
+    () =>
+      currentTool
+        ? [
+            {
+              key: currentTool.key,
+              display_name: currentTool.display_name,
+              enabled: currentTool.enabled,
+              installed: currentTool.installed,
+            },
+          ]
+        : [],
+    [currentTool]
+  );
 
-      {/* No agents empty state */}
-      {installedTools.length === 0 ? (
+  const existsInGlobal = useCallback(
+    (skill: ManagedSkill, agentK: string) =>
+      skill.targets.some((target) => target.tool === agentK),
+    []
+  );
+
+  const handlePresetAdd = useCallback(async (skill: ManagedSkill, agentK: string) => {
+    await api.syncSkillToTool(skill.id, agentK);
+  }, []);
+
+  const handlePresetRemove = useCallback(async (skill: ManagedSkill, agentK: string) => {
+    await api.unsyncSkillFromTool(skill.id, agentK);
+  }, []);
+
+  const handlePresetComplete = useCallback(async () => {
+    await Promise.all([refreshManagedSkills(), refreshTools()]);
+  }, [refreshManagedSkills, refreshTools]);
+
+  // No agents installed
+  if (installedTools.length === 0) {
+    return (
+      <div className="app-page">
         <div className="app-panel flex flex-col items-center justify-center py-16 text-center">
           <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-surface-hover">
             <Globe className="h-5 w-5 text-muted" />
@@ -307,113 +313,208 @@ export function GlobalWorkspace() {
             {t("globalWorkspace.noAgentsHint")}
           </p>
         </div>
+      </div>
+    );
+  }
+
+  // Waiting for auto-redirect or unknown agent key
+  if (!currentTool) return null;
+
+  return (
+    <div className="app-page">
+      {/* Header */}
+      <div className="app-page-header pr-2 flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h1 className="app-page-title flex items-center gap-2.5">
+            <Globe className="h-5 w-5 text-accent" />
+            {currentTool.display_name}
+            <span className="app-badge">{agentSkills.length}</span>
+          </h1>
+          <p className="app-page-subtitle">{t("globalWorkspace.subtitle")}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2 pt-1">
+          <button
+            onClick={() => setShowPresetDialog(true)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-background px-3 py-2 text-[13px] font-medium text-secondary transition-colors hover:border-border hover:bg-surface-hover"
+          >
+            <Layers className="h-3.5 w-3.5" />
+            {t("presetActions.button")}
+          </button>
+          <button
+            onClick={() => setAddDialogOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-2 text-[13px] font-medium text-white transition-colors hover:bg-accent-hover"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {t("globalWorkspace.addSkill")}
+          </button>
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="app-toolbar">
+        <div className="relative w-full max-w-[280px]">
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("globalWorkspace.addSkillSearch")}
+            className="app-input w-full pl-9 font-medium"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+        </div>
+
+        <div className="app-segmented">
+          <button
+            onClick={() => setViewMode("grid")}
+            className={cn(
+              "rounded-md p-2 transition-colors outline-none",
+              viewMode === "grid" ? "bg-surface-active text-secondary" : "text-muted hover:text-tertiary"
+            )}
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => setViewMode("list")}
+            className={cn(
+              "rounded-md p-2 transition-colors outline-none",
+              viewMode === "list" ? "bg-surface-active text-secondary" : "text-muted hover:text-tertiary"
+            )}
+          >
+            <List className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Skills */}
+      {filtered.length === 0 ? (
+        agentSkills.length === 0 ? (
+          <div className="flex flex-1 flex-col items-center justify-center pb-20 text-center">
+            <Globe className="mb-4 h-12 w-12 text-faint" />
+            <h3 className="mb-1.5 text-[14px] font-semibold text-tertiary">
+              {t("globalWorkspace.noSkillsForAgent")}
+            </h3>
+            <button
+              onClick={() => setAddDialogOpen(true)}
+              className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-accent px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-accent-hover"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {t("globalWorkspace.addSkill")}
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-1 flex-col items-center justify-center pb-20 text-center">
+            <p className="text-[13px] text-muted">{t("mySkills.noMatch")}</p>
+          </div>
+        )
       ) : (
-        <div className="space-y-3">
-          {installedTools.map((tool) => {
-            const agentSkills = skillsByAgent[tool.key] ?? [];
-            const collapsed = collapsedAgents.has(tool.key);
-            const hasSkills = agentSkills.length > 0;
+        <div
+          className={cn(
+            "pb-8",
+            viewMode === "grid"
+              ? "grid grid-cols-2 gap-3 lg:grid-cols-3"
+              : "flex flex-col gap-0.5"
+          )}
+        >
+          {filtered.map((skill) => {
+            const removing = removingId === skill.id;
 
-            return (
-              <div key={tool.key} className="app-panel overflow-hidden">
-                {/* Agent header row */}
-                <div className={cn(
-                  "flex items-center gap-2 px-4 py-3",
-                  !collapsed && "border-b border-border-subtle"
-                )}>
-                  {/* Collapse toggle — left side */}
-                  <button
-                    onClick={() => toggleCollapse(tool.key)}
-                    className="flex min-w-0 flex-1 items-center gap-2.5 text-left outline-none"
-                  >
-                    <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center text-faint transition-colors hover:text-muted">
-                      {collapsed
-                        ? <ChevronRight className="h-3.5 w-3.5" />
-                        : <ChevronDown className="h-3.5 w-3.5" />}
-                    </span>
-                    <span className="text-[13px] font-semibold text-primary">{tool.display_name}</span>
-                    <span className={cn(
-                      "rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums leading-none",
-                      hasSkills
-                        ? "bg-accent-bg text-accent-light"
-                        : "bg-surface-hover text-faint"
-                    )}>
-                      {agentSkills.length}
-                    </span>
-                  </button>
+            if (viewMode === "grid") {
+              return (
+                <div
+                  key={skill.id}
+                  className="app-panel group relative flex h-full flex-col transition-all hover:border-border hover:bg-surface-hover"
+                >
+                  <div className="flex items-center gap-2.5 px-3.5 pt-3 pb-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                    <h3
+                      className="flex-1 truncate text-[14px] font-semibold text-primary"
+                      title={skill.name}
+                    >
+                      {skill.name}
+                    </h3>
+                  </div>
 
-                  {/* Add Skill — right side, visible when expanded */}
-                  <button
-                    onClick={() => setAddDialogAgentKey(tool.key)}
-                    className={cn(
-                      "inline-flex shrink-0 items-center gap-1 rounded-[5px] border border-border-subtle px-2 py-1 text-[12px] font-medium text-muted transition-colors hover:border-border hover:text-secondary",
-                      collapsed && "invisible"
-                    )}
-                    tabIndex={collapsed ? -1 : 0}
-                  >
-                    <Plus className="h-3 w-3" />
-                    {t("globalWorkspace.addSkill")}
-                  </button>
-                </div>
-
-                {/* Skills list */}
-                {!collapsed && (
-                  hasSkills ? (
-                    <div className="divide-y divide-border-subtle">
-                      {agentSkills.map((skill) => {
-                        const key = `${skill.id}:${tool.key}`;
-                        const removing = removingKey === key;
-                        return (
-                          <div
-                            key={skill.id}
-                            className="group flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-surface-hover"
+                  <div className="px-3.5 pb-3">
+                    <p className="truncate text-[13px] leading-[18px] text-muted">
+                      {skill.description || "—"}
+                    </p>
+                    {skill.tags.length > 0 && (
+                      <div className="mt-2 flex flex-wrap items-center gap-1">
+                        {skill.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className={cn(
+                              "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
+                              getTagColor(tag, allTags)
+                            )}
                           >
-                            {/* Skill info */}
-                            <div className="min-w-0 flex-1">
-                              <div className="truncate text-[13px] font-medium text-primary leading-snug">
-                                {skill.name}
-                              </div>
-                              {skill.description && (
-                                <div className="mt-0.5 truncate text-[11px] text-faint leading-snug">
-                                  {skill.description}
-                                </div>
-                              )}
-                            </div>
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
-                            {/* Remove — visible on row hover */}
-                            <button
-                              onClick={() => handleRemove(skill, tool.key)}
-                              disabled={removing}
-                              title={t("globalWorkspace.removeSkill")}
-                              className={cn(
-                                "shrink-0 rounded p-1 transition-all",
-                                removing
-                                  ? "text-muted opacity-100"
-                                  : "text-faint opacity-0 group-hover:opacity-100 hover:text-red-500 hover:bg-red-500/10"
-                              )}
-                            >
-                              {removing
-                                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                : <Trash2 className="h-3.5 w-3.5" />}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    /* Empty per-agent state */
-                    <div className="flex items-center justify-between px-4 py-5">
-                      <p className="text-[12px] text-faint">{t("globalWorkspace.noSkillsForAgent")}</p>
-                      <button
-                        onClick={() => setAddDialogAgentKey(tool.key)}
-                        className="inline-flex items-center gap-1 rounded-[5px] bg-accent px-2.5 py-1.5 text-[12px] font-medium text-white transition-colors hover:bg-accent-hover"
+                  <div className="mt-auto flex items-center justify-end border-t border-border-subtle px-3.5 py-2">
+                    <button
+                      onClick={() => handleRemove(skill)}
+                      disabled={removing}
+                      title={t("globalWorkspace.removeSkill")}
+                      className="rounded p-1 text-faint opacity-0 transition-all group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 disabled:opacity-50"
+                    >
+                      {removing
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <Trash2 className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+
+            // List view
+            return (
+              <div
+                key={skill.id}
+                className="app-panel group flex items-center gap-3.5 rounded-xl border-transparent px-3.5 py-3 transition-all hover:border-border hover:bg-surface-hover"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                <h3
+                  className="w-[180px] shrink-0 truncate text-[14px] font-semibold text-secondary"
+                  title={skill.name}
+                >
+                  {skill.name}
+                </h3>
+                <p className="min-w-0 flex-1 truncate text-[13px] text-muted">
+                  {skill.description || "—"}
+                </p>
+                {skill.tags.length > 0 && (
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {skill.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className={cn(
+                          "inline-flex items-center rounded-full px-1.5 py-0.5 text-[11px] font-medium",
+                          getTagColor(tag, allTags)
+                        )}
                       >
-                        <Plus className="h-3 w-3" />
-                        {t("globalWorkspace.addSkill")}
-                      </button>
-                    </div>
-                  )
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
                 )}
+                <button
+                  onClick={() => handleRemove(skill)}
+                  disabled={removing}
+                  title={t("globalWorkspace.removeSkill")}
+                  className="shrink-0 rounded p-0.5 text-faint opacity-0 transition-all group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 disabled:opacity-50"
+                >
+                  {removing
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    : <Trash2 className="h-3.5 w-3.5" />}
+                </button>
               </div>
             );
           })}
@@ -426,6 +527,7 @@ export function GlobalWorkspace() {
         presets={scenarios}
         managedSkills={managedSkills}
         agents={globalWorkspaceAgents}
+        initialSelectedAgents={agentKey ? [agentKey] : []}
         onClose={() => setShowPresetDialog(false)}
         existsInWorkspace={existsInGlobal}
         onAddSkill={handlePresetAdd}
@@ -433,13 +535,13 @@ export function GlobalWorkspace() {
         onComplete={handlePresetComplete}
       />
 
-      {addDialogAgent && (
+      {addDialogOpen && currentTool && (
         <AddSkillDialog
-          agent={addDialogAgent}
+          agent={currentTool}
           managedSkills={managedSkills}
-          installedSkillIds={addDialogInstalledIds}
+          installedSkillIds={installedIds}
           onAdd={handleAddSkills}
-          onClose={() => setAddDialogAgentKey(null)}
+          onClose={() => setAddDialogOpen(false)}
         />
       )}
     </div>

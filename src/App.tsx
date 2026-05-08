@@ -39,6 +39,7 @@ function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/my-skills" element={<MySkills />} />
               <Route path="/global-workspace" element={<GlobalWorkspace />} />
+              <Route path="/global-workspace/:agentKey" element={<GlobalWorkspace />} />
               <Route path="/install" element={<InstallSkills />} />
               <Route path="/project/:id" element={<ProjectDetail />} />
               <Route path="/settings" element={<Settings />} />
