@@ -116,10 +116,10 @@ function AddSkillDialog({
                   >
                     <div
                       className={cn(
-                        "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
+                        "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
                         selected
                           ? "border-accent bg-accent text-white"
-                          : "border-border-subtle bg-transparent"
+                          : "border-border bg-transparent"
                       )}
                     >
                       {selected && (
@@ -196,6 +196,11 @@ export function GlobalWorkspace() {
     return map;
   }, [tools, managedSkills]);
 
+  const totalInstalled = useMemo(
+    () => new Set(managedSkills.filter((s) => s.targets.length > 0).map((s) => s.id)).size,
+    [managedSkills]
+  );
+
   const globalWorkspaceAgents = useMemo(
     () =>
       tools.map((tool) => ({
@@ -267,11 +272,19 @@ export function GlobalWorkspace() {
 
   return (
     <div className="app-page">
+      {/* Header */}
       <div className="app-page-header">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="app-page-title">{t("globalWorkspace.title")}</h1>
-            <p className="app-page-subtitle">{t("globalWorkspace.subtitle")}</p>
+            <p className="app-page-subtitle">
+              {t("globalWorkspace.subtitle")}
+              {totalInstalled > 0 && (
+                <span className="ml-2 rounded-full bg-accent-bg px-2 py-0.5 text-[11px] font-semibold text-accent-light">
+                  {t("globalWorkspace.skillCount", { count: totalInstalled })}
+                </span>
+              )}
+            </p>
           </div>
           <button
             onClick={() => setShowPresetDialog(true)}
@@ -283,84 +296,124 @@ export function GlobalWorkspace() {
         </div>
       </div>
 
+      {/* No agents empty state */}
       {installedTools.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Globe className="mb-3 h-10 w-10 text-faint" />
-          <p className="text-[14px] font-medium text-secondary">{t("globalWorkspace.noAgents")}</p>
-          <p className="mt-1 text-[13px] text-muted">{t("globalWorkspace.noAgentsHint")}</p>
+        <div className="app-panel flex flex-col items-center justify-center py-16 text-center">
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-surface-hover">
+            <Globe className="h-5 w-5 text-muted" />
+          </div>
+          <p className="text-[13px] font-medium text-secondary">{t("globalWorkspace.noAgents")}</p>
+          <p className="mt-1 max-w-[260px] text-[12px] leading-relaxed text-muted">
+            {t("globalWorkspace.noAgentsHint")}
+          </p>
         </div>
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-3">
           {installedTools.map((tool) => {
             const agentSkills = skillsByAgent[tool.key] ?? [];
             const collapsed = collapsedAgents.has(tool.key);
+            const hasSkills = agentSkills.length > 0;
+
             return (
-              <div key={tool.key} className="rounded-xl border border-border-subtle">
+              <div key={tool.key} className="app-panel overflow-hidden">
+                {/* Agent header row */}
                 <div className={cn(
-                  "flex items-center justify-between gap-3 px-5 py-3",
+                  "flex items-center gap-2 px-4 py-3",
                   !collapsed && "border-b border-border-subtle"
                 )}>
+                  {/* Collapse toggle — left side */}
                   <button
                     onClick={() => toggleCollapse(tool.key)}
-                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                    className="flex min-w-0 flex-1 items-center gap-2.5 text-left outline-none"
                   >
-                    {collapsed
-                      ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted" />
-                      : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted" />}
-                    <span className="text-[14px] font-semibold text-primary">{tool.display_name}</span>
-                    <span className="rounded-full bg-surface-hover px-2 py-0.5 text-[12px] font-medium text-muted">
-                      {t("globalWorkspace.skillCount", { count: agentSkills.length })}
+                    <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center text-faint transition-colors hover:text-muted">
+                      {collapsed
+                        ? <ChevronRight className="h-3.5 w-3.5" />
+                        : <ChevronDown className="h-3.5 w-3.5" />}
+                    </span>
+                    <span className="text-[13px] font-semibold text-primary">{tool.display_name}</span>
+                    <span className={cn(
+                      "rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums leading-none",
+                      hasSkills
+                        ? "bg-accent-bg text-accent-light"
+                        : "bg-surface-hover text-faint"
+                    )}>
+                      {agentSkills.length}
                     </span>
                   </button>
-                  {!collapsed && (
-                    <button
-                      onClick={() => setAddDialogAgentKey(tool.key)}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border-subtle px-2.5 py-1.5 text-[12px] font-medium text-muted transition-colors hover:border-border hover:text-secondary"
-                    >
-                      <Plus className="h-3 w-3" />
-                      {t("globalWorkspace.addSkill")}
-                    </button>
-                  )}
+
+                  {/* Add Skill — right side, visible when expanded */}
+                  <button
+                    onClick={() => setAddDialogAgentKey(tool.key)}
+                    className={cn(
+                      "inline-flex shrink-0 items-center gap-1 rounded-[5px] border border-border-subtle px-2 py-1 text-[12px] font-medium text-muted transition-colors hover:border-border hover:text-secondary",
+                      collapsed && "invisible"
+                    )}
+                    tabIndex={collapsed ? -1 : 0}
+                  >
+                    <Plus className="h-3 w-3" />
+                    {t("globalWorkspace.addSkill")}
+                  </button>
                 </div>
 
-                {!collapsed && (agentSkills.length === 0 ? (
-                  <div className="px-5 py-8 text-center text-[13px] text-muted">
-                    {t("globalWorkspace.noSkillsForAgent")}
-                  </div>
-                ) : (
-                  <div className="divide-y divide-border-subtle">
-                    {agentSkills.map((skill) => {
-                      const key = `${skill.id}:${tool.key}`;
-                      const removing = removingKey === key;
-                      return (
-                        <div key={skill.id} className="flex items-center gap-3 px-5 py-2.5">
-                          <div className="min-w-0 flex-1">
-                            <div className="truncate text-[13px] font-medium text-primary">
-                              {skill.name}
-                            </div>
-                            {skill.description && (
-                              <div className="mt-0.5 truncate text-[12px] text-muted">
-                                {skill.description}
-                              </div>
-                            )}
-                          </div>
-                          <button
-                            onClick={() => handleRemove(skill, tool.key)}
-                            disabled={removing}
-                            className="shrink-0 rounded-md p-1.5 text-faint transition-colors hover:bg-red-500/10 hover:text-red-500 disabled:opacity-50"
-                            title={t("globalWorkspace.removeSkill")}
+                {/* Skills list */}
+                {!collapsed && (
+                  hasSkills ? (
+                    <div className="divide-y divide-border-subtle">
+                      {agentSkills.map((skill) => {
+                        const key = `${skill.id}:${tool.key}`;
+                        const removing = removingKey === key;
+                        return (
+                          <div
+                            key={skill.id}
+                            className="group flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-surface-hover"
                           >
-                            {removing ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-3.5 w-3.5" />
-                            )}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
+                            {/* Skill info */}
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-[13px] font-medium text-primary leading-snug">
+                                {skill.name}
+                              </div>
+                              {skill.description && (
+                                <div className="mt-0.5 truncate text-[11px] text-faint leading-snug">
+                                  {skill.description}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Remove — visible on row hover */}
+                            <button
+                              onClick={() => handleRemove(skill, tool.key)}
+                              disabled={removing}
+                              title={t("globalWorkspace.removeSkill")}
+                              className={cn(
+                                "shrink-0 rounded p-1 transition-all",
+                                removing
+                                  ? "text-muted opacity-100"
+                                  : "text-faint opacity-0 group-hover:opacity-100 hover:text-red-500 hover:bg-red-500/10"
+                              )}
+                            >
+                              {removing
+                                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                : <Trash2 className="h-3.5 w-3.5" />}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    /* Empty per-agent state */
+                    <div className="flex items-center justify-between px-4 py-5">
+                      <p className="text-[12px] text-faint">{t("globalWorkspace.noSkillsForAgent")}</p>
+                      <button
+                        onClick={() => setAddDialogAgentKey(tool.key)}
+                        className="inline-flex items-center gap-1 rounded-[5px] bg-accent px-2.5 py-1.5 text-[12px] font-medium text-white transition-colors hover:bg-accent-hover"
+                      >
+                        <Plus className="h-3 w-3" />
+                        {t("globalWorkspace.addSkill")}
+                      </button>
+                    </div>
+                  )
+                )}
               </div>
             );
           })}
