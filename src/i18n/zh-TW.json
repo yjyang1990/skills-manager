@@ -16,31 +16,35 @@
   "help": {
     "eyebrow": "操作指南",
     "title": "快速上手 Skills Manager",
-    "description": "最快的使用路徑是：先選 Preset，把 Skill 安裝進中央倉庫，再在「我的 Skills」裡決定目前 Preset 要啟用什麼；只有在需要專案內協作、Git 備份或環境設定時，再到對應頁面處理。",
+    "description": "最快路徑：安裝 Skills → 開啟全域工作區 → 點擊 Preset 標籤啟用。按 ⌘K 可隨時呼出命令面板。按需使用專案工作區、Git 備份和設定。",
     "items": {
+      "workflows": {
+        "title": "推薦工作流程",
+        "description": "單一 Agent 用戶：安裝 Skills → 開啟全域工作區 → 點擊 Preset 標籤啟用。多專案用戶：開啟專案工作區，點擊 Preset 標籤為該專案的 Agent 啟用 Skills。多機用戶：在設定頁開啟 Git 備份，把中央倉庫在多台裝置間同步。"
+      },
       "scenarios": {
         "title": "Preset",
-        "description": "把 Skills 組織成命名的 Preset。在全域工作區或專案工作區點擊「套用 Preset」，即可把一組 Skills 加入或移除自選定 Agent。Preset 是可重複使用的範本，套用是一次性操作，不會自動同步。"
+        "description": "把 Skills 組織成命名的 Preset。在任意工作區點擊 Preset 標籤，即可一鍵啟用或停用其全部 Skills。已啟用的 Preset 顯示 ✓，部分安裝的顯示數量。套用 Preset 是一次性操作，不會自動同步。"
       },
       "install": {
-        "title": "把 Skill 安裝進中央倉庫",
-        "description": "支援從本機資料夾、Git 倉庫、壓縮檔或市集匯入。若你在設定裡填入 SkillsMP API Key，市集搜尋還可以切換為 AI 搜尋。"
+        "title": "安裝 Skills",
+        "description": "支援從本機資料夾、Git 倉庫、壓縮檔或市集匯入。支援批次匯入資料夾中的多個 Skill。在設定裡填入 SkillsMP API Key 後可使用 AI 搜尋。"
       },
       "sync": {
-        "title": "在「我的 Skills」裡決定目前 Preset 啟用什麼",
-        "description": "在這裡啟用或移除 Skill、加入標籤、檢視文件與來源資訊、檢查更新、查看版本歷史，也可以依 Agent 手動同步或取消同步。"
+        "title": "我的 Skills",
+        "description": "瀏覽所有已安裝的 Skills，支援批次標籤編輯和依 Agent 同步開關。點擊 Skill 可查看文件、版本歷史和 Agent 同步詳情。"
       },
       "projects": {
-        "title": "專案工作區適合管理倉庫內的本地 Skills",
-        "description": "關聯專案後，可以檢視專案內各 Agent 的本地 Skills 目錄、對照中央倉庫，並依需求雙向匯入或匯出。"
+        "title": "專案工作區",
+        "description": "關聯專案後，可以檢視專案內各 Agent 的本地 Skills 目錄、對照中央倉庫，並依需求雙向匯入或匯出。使用 Preset 標籤啟用技能組，或單獨新增 Skills。"
       },
       "backup": {
-        "title": "需要歷史版本或多機同步時，用 Git 備份",
-        "description": "先在設定裡儲存遠端倉庫位址，再去「我的 Skills」執行「開始備份」或「同步到 Git」。每次成功同步都會建立一個可從版本歷史還原的快照標籤。"
+        "title": "Git 備份",
+        "description": "先在設定裡儲存遠端倉庫位址，再去「我的 Skills」執行備份或同步。每次成功同步都會建立一個可從版本歷史還原的快照標籤，適合多機同步和版本管理。"
       },
       "settings": {
-        "title": "環境設定統一放在設定頁",
-        "description": "在這裡檢查 Agent 路徑、加入自訂工具、切換同步模式、主題、字級、語言和預設 Preset，設定托盤、代理、Git 遠端、AI 搜尋 Key，並檢查應用更新。"
+        "title": "設定",
+        "description": "管理 Agent 路徑與開關、自訂 Agent、同步模式、主題字級、語言、網路代理、Git 遠端、AI 搜尋 Key，以及應用更新。"
       }
     }
   },

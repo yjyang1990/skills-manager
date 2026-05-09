@@ -16,15 +16,15 @@
   "help": {
     "eyebrow": "Guide",
     "title": "Quick Start for Skills Manager",
-    "description": "Fastest path: install skills → open Global Workspace → apply a preset to your agents. Press ⌘K anytime to open the command palette. Use Project Workspaces, Git backup, and Settings as needed.",
+    "description": "Fastest path: install skills → open Global Workspace → click a Preset pill to activate. Press ⌘K anytime for the command palette. Use Project Workspaces, Git backup, and Settings as needed.",
     "items": {
       "workflows": {
         "title": "Recommended Workflows",
-        "description": "Single-agent users: install skills → tap Apply Preset and choose an agent. That's it — ignore tags and project workspaces. Multi-project users: use Project Workspaces to add skills directly or apply a preset to selected project agents. Multi-machine users: turn on Git Backup in Settings to sync the central library across devices."
+        "description": "Single-agent: install skills → open Global Workspace → click a Preset pill to activate. Multi-project: open a Project Workspace and click a Preset pill to activate skills for that project's agents. Multi-machine: turn on Git Backup in Settings to sync your library across devices."
       },
       "scenarios": {
         "title": "Presets",
-        "description": "Group skills into named presets. Open Global Workspace or a Project Workspace and click Apply Preset to add or remove a preset's skills from selected agents. Presets are reusable templates — applying them is a one-time operation, not a live sync."
+        "description": "Group skills into named presets. In any workspace, click a Preset pill to instantly activate or deactivate all its skills for the current agent scope. Active presets show ✓; partially installed ones show a count. Applying a preset is a one-time copy — not a live sync."
       },
       "install": {
         "title": "Install Skills",
@@ -32,11 +32,11 @@
       },
       "sync": {
         "title": "Library",
-        "description": "Manage enabled skills for the current scenario with bulk tag editing and per-agent sync toggles. Click any skill to view docs, version history, and agent sync details."
+        "description": "Browse all installed skills with bulk tag editing and per-agent sync toggles. Click any skill to view docs, version history, and agent sync details."
       },
       "projects": {
         "title": "Project Workspaces",
-        "description": "Link a project to browse per-agent local skill folders, compare with the central library, and import or export changes. Supports agent-level toggles, nested directories, and standalone workspace linking."
+        "description": "Link a project to browse per-agent local skill folders, compare with the central library, and import or export changes. Use Preset pills to activate skill groups, or add skills individually."
       },
       "backup": {
         "title": "Git Backup",
@@ -44,7 +44,7 @@
       },
       "settings": {
         "title": "Settings",
-        "description": "Manage agent paths and toggles, add custom agents, change sync mode, theme, text size, language, default scenario, proxy, Git remote, AI search key, and check for app updates."
+        "description": "Manage agent paths and toggles, add custom agents, change sync mode, theme, text size, language, proxy, Git remote, AI search key, and check for app updates."
       }
     }
   },
