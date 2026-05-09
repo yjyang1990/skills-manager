@@ -24,6 +24,7 @@ import { CreateScenarioDialog } from "./CreateScenarioDialog";
 import { RenameScenarioDialog } from "./RenameScenarioDialog";
 import { AddProjectDialog } from "./AddProjectDialog";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { AgentIcon } from "./AgentIcon";
 import * as api from "../lib/tauri";
 import type { SyncHealth } from "../lib/tauri";
 import { getScenarioIconOption } from "../lib/scenarioIcons";
@@ -444,14 +445,14 @@ export function Sidebar() {
                                       isActive ? "font-medium text-primary" : "text-tertiary group-hover:text-secondary"
                                     )}
                                   >
-                                    <span className={cn(
-                                      "flex h-[20px] w-[20px] shrink-0 items-center justify-center rounded border",
-                                      isActive
-                                        ? "border-accent/30 bg-accent/10 text-accent"
-                                        : "border-border bg-surface text-muted group-hover:border-border group-hover:text-tertiary"
-                                    )}>
-                                      <Globe className="h-3 w-3" />
-                                    </span>
+                                    <AgentIcon
+                                      agentKey={tool.key}
+                                      displayName={tool.display_name}
+                                      className={cn(
+                                        "h-[20px] w-[20px] rounded border transition-colors",
+                                        isActive ? "border-accent/30 bg-accent/10" : "group-hover:border-border"
+                                      )}
+                                    />
                                     <span className="flex-1 truncate">{tool.display_name}</span>
                                     <span className="ml-auto flex h-[18px] w-[32px] shrink-0 items-center justify-end group-hover:hidden">
                                       {skillCount > 0 && (

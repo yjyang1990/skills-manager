@@ -30,6 +30,7 @@ import { MultiSelectToolbar } from "../components/MultiSelectToolbar";
 import { BatchTagDialog } from "../components/BatchTagDialog";
 import { DetailSheet } from "../components/DetailSheet";
 import { AgentToggleSection, type AgentToggleItem } from "../components/AgentToggleSection";
+import { AgentIcon } from "../components/AgentIcon";
 import { ProjectAgentDots } from "../components/ProjectAgentDots";
 import { PresetBar } from "../components/PresetBar";
 import { SkillMarkdown } from "../components/SkillMarkdown";
@@ -1808,6 +1809,11 @@ function AddFromLibraryDialog({
                           )}
                         >
                           {active ? <SquareCheck className="h-3.5 w-3.5" /> : <Square className="h-3.5 w-3.5" />}
+                          <AgentIcon
+                            agentKey={target.key}
+                            displayName={target.display_name}
+                            className="h-5 w-5 rounded-[5px]"
+                          />
                           {target.display_name}
                         </button>
                       );
@@ -1840,11 +1846,16 @@ function AddFromLibraryDialog({
                                   active
                                     ? "border-accent-border bg-accent-bg text-accent-light"
                                     : "border-border-subtle text-muted hover:border-border hover:text-secondary"
-                                )}
-                              >
-                                {active ? <SquareCheck className="h-3.5 w-3.5" /> : <Square className="h-3.5 w-3.5" />}
-                                {target.display_name}
-                              </button>
+                              )}
+                            >
+                              {active ? <SquareCheck className="h-3.5 w-3.5" /> : <Square className="h-3.5 w-3.5" />}
+                              <AgentIcon
+                                agentKey={target.key}
+                                displayName={target.display_name}
+                                className="h-5 w-5 rounded-[5px]"
+                              />
+                              {target.display_name}
+                            </button>
                             );
                           })}
                         </div>

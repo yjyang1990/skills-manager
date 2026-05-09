@@ -23,6 +23,7 @@ import { useMultiSelect } from "../hooks/useMultiSelect";
 import { MultiSelectToolbar } from "../components/MultiSelectToolbar";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { PresetBar } from "../components/PresetBar";
+import { AgentIcon } from "../components/AgentIcon";
 import { getTagColor, getTagActiveColor } from "../lib/skillTags";
 import * as api from "../lib/tauri";
 import type { ManagedSkill, ToolInfo } from "../lib/tauri";
@@ -404,9 +405,11 @@ export function GlobalWorkspace() {
                 onClick={() => navigate(`/global-workspace/${tool.key}`)}
                 className="app-panel group flex items-center gap-3 p-3.5 text-left transition-all hover:border-border hover:bg-surface-hover"
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-muted group-hover:text-secondary">
-                  <Globe className="h-4 w-4" />
-                </span>
+                <AgentIcon
+                  agentKey={tool.key}
+                  displayName={tool.display_name}
+                  className="h-9 w-9 rounded-lg transition-colors group-hover:border-border"
+                />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13px] font-semibold text-secondary">{tool.display_name}</p>
                   <p className="text-[12px] text-muted">{t("globalWorkspace.skillCount", { count })}</p>
@@ -427,7 +430,11 @@ export function GlobalWorkspace() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0 flex-[1_1_180px]">
             <h1 className="app-page-title flex items-center gap-2.5">
-              <Globe className="h-5 w-5 text-accent" />
+              <AgentIcon
+                agentKey={currentTool.key}
+                displayName={currentTool.display_name}
+                className="h-7 w-7 rounded-lg"
+              />
               {currentTool.display_name}
               <span className="app-badge">{agentSkills.length}</span>
             </h1>
